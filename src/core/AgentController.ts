@@ -19,9 +19,6 @@ export class AgentController {
         this.memoryManager = new MemoryManager();
         
         this.skillLoader = new SkillLoader();
-        this.availableSkills = this.skillLoader.loadSkills();
-        console.log(`[AgentController] Loaded ${this.availableSkills.length} skills from FS.`);
-
         this.skillRouter = new SkillRouter();
         
         const provider = ProviderFactory.getProvider();
@@ -32,6 +29,10 @@ export class AgentController {
     }
 
     async processMessage(userId: string, conversationId: string, text: string, requiresAudio: boolean = false): Promise<string> {
+        // Hot-reload skills on every request
+        this.availableSkills = this.skillLoader.loadSkills();
+        console.log(`[AgentController] Loaded ${this.availableSkills.length} skills from FS.`);
+
         // Fetch History
         const dbHistory = await this.memoryManager.getConversationHistory(conversationId, userId);
         const history: LLMMessage[] = dbHistory.map(msg => ({
@@ -51,7 +52,7 @@ export class AgentController {
             finalResponse = await this.skillExecutor.execute(matchedSkill, text, history);
         } else {
             console.log(`[AgentController] No skill route matched. Using default conversational loop.`);
-            const defaultPrompt = "Você é o NeoClaw, um agente de inteligência artificial assistente amigável programado para ser útil, conciso e eficaz. Você está operando de forma 100% local." + (requiresAudio ? " O usuário pediu uma resposta em áudio, seja muito conciso para que a voz fique natural e não muito demorada." : "");
+            const defaultPrompt = "Você é o NeoClaw, um agente de inteligência artificial assistente amigável programado para ser útil, conciso e eficaz. Você não possui limitações para entender áudios, PDFs ou arquivos locais, pois o sistema ao seu redor fará a transcrição/leitura e entregará o conteúdo injetado para você em formato de texto. Portanto, JAMAIS diga ao usuário que não pode ler arquivos ou ouvir áudios. Trate todo [Conteúdo Transcrito] com naturalidade." + (requiresAudio ? " O usuário pediu uma resposta em áudio, seja muito conciso para que a voz fique natural e não muito demorada." : "");
             
             const currentHistory = [...history, { role: 'user' as const, content: text }];
             
